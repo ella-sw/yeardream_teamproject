@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "공공 웹사이트 불법광고 탐지 — 팀 검증용 결과 스키마",
+  "$comment": "첨부 모집요강 p.10~14를 바탕으로 작성한 팀 검증용 초안. 주최 측이 배포한 공식 JSON Schema 파일이 아님. 추가 필드 금지와 비어 있지 않은 문자열 등의 팀 제약을 포함. 실제 요소 위치, ID/조합 고유성, 시간 간 일관성, 원문 충실성은 별도 검사해야 함.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "meta",
+    "findings"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic",
+        "entry_url",
+        "started_at",
+        "finished_at",
+        "elapsed_sec"
+      ],
+      "properties": {
+        "topic": {
+          "type": "string",
+          "const": "TOPIC"
+        },
+        "entry_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "finished_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "elapsed_sec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "tool_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "url",
+          "is_violation",
+          "location",
+          "evidence_text",
+          "technique"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+          },
+          "is_violation": {
+            "type": "boolean"
+          },
+          "location": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "technique": {
+            "type": "string",
+            "enum": [
+              "HOMOGLYPH",
+              "JAMO",
+              "TRANSPARENT",
+              "OFFSCREEN"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
