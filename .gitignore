@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+build/
+dist/
+*.spec
+result.json
+result.json.tmp
+run_report.json
+run_report.json.tmp
+.runs/
+.history/
+vendor/
