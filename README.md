@@ -1,56 +1,42 @@
-# 공공 웹사이트 불법광고 탐지 도구 — 코딩 에이전트 공통 구현 인계
+# 공공 웹사이트 불법광고 탐지 도구
 
-**지금 할 일: 이 폴더를 프로젝트로 열고 `START_PROMPT.md`의 첫 지시문을 전달한다.**
+사용자가 권한을 가진 공공 웹사이트를 점검해 광고 의심 콘텐츠와 은닉 기법을 표시하는 Windows 로컬 도구입니다. 현재 코드는 **M0/M1 첫 세로 흐름**입니다. 입력한 페이지 한 곳에서 `display:none`으로 숨긴 광고 문맥을 `OFFSCREEN`으로 찾아 실제 요소 위치, 결과 UI, `result.json`까지 연결합니다.
 
-이 묶음은 기획을 다시 논의하기 위한 자료가 아니라, 첫 실제 동작부터 순서대로 구현하기 위한 작업 기준이다. **앱 코드·실행 파일이 완성된 프로젝트는 아니다.**
+## 현재 구현 범위
 
-## 1. 들어 있는 것
+- URL 하나를 검사하며 하위 링크와 iframe은 아직 탐색하지 않습니다.
+- 현재 작동하는 기법은 `display:none` 기반 `OFFSCREEN`뿐입니다. 다른 필수 기법은 다음 단계에서 추가합니다.
+- 광고 문맥은 `app/detection/terms.json`의 도메인·홍보 용어가 같은 요소 안에 함께 있을 때만 후보로 봅니다. 이 작은 사전은 실증 검증된 분류기가 아닙니다.
+- 결과는 실행 폴더의 `result.json`과 진단용 `run_report.json`에 저장됩니다. 작업별 사본은 `.runs/`에, 이전 최신 파일은 `.history/`에 보관합니다.
+- 검사는 별도 프로세스에서 실행하고, UI는 `127.0.0.1`에만 바인딩합니다.
+- 비공개·loopback·link-local 등 비공개 주소는 기본 차단합니다. `SCANNER_ALLOWED_TEST_ORIGINS`는 자체 테스트 중 정확한 origin만 허용할 때만 지정합니다. 이 설정은 사용자 입력으로 받지 않습니다.
 
-| 파일 | 용도 |
-|---|---|
-| `IMPLEMENTATION_SPEC.md` | 만들 것/뺄 것, 처리 방식, 데이터 계약, 오류 처리, 4일 작업 순서 |
-| `ACCEPTANCE_TESTS.md` | 테스트 입력과 기대 결과, 실제로 통과해야 하는 완료 기준 |
-| `AGENTS.md` | AI 작업 규칙, 범위 제한, 테스트·완료 보고 원칙 |
-| `START_PROMPT.md` | 첫 구현 지시문, 다음 단계 및 두 팀원의 작업 지시문 |
-| `docs/STATUS.md` | 확인된 진행 상태와 다음 작업. 현재 앱 구현은 모두 NOT STARTED |
-| `schemas/result.schema.json` | 원문에 근거해 작성한 팀 검증용 출력 스키마. 공식 제공 스키마 파일은 아님 |
-| `schemas/example.result.json` | 구조 확인용 가상 결과. 실제 탐지 결과가 아님 |
-| `sources/` | 사용자 제공 모집요강 PDF·WIKI 원본 복사본, 기술 참고 출처 |
+이 도구는 법적 위법성을 확정하지 않고 의심 요소를 검토 대상으로 제시합니다. 실제 사이트를 검사하기 전에 점검 권한을 확보하세요.
 
-## 2. 사용 방법
+## macOS 개발 실행
 
-새 프로젝트라면 압축을 풀고 **AGENTS.md와 IMPLEMENTATION_SPEC.md가 보이는 폴더**를 Codex 또는 사용할 코딩 에이전트의 작업 폴더로 연다. `START_PROMPT.md`의 첫 코드 블록을 대화에 붙여 넣는다.
+```bash
+python3.14 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python -m playwright install chromium
+python launcher.py
+```
 
-이미 개발 중인 저장소라면 기존 파일을 먼저 보존한다. 같은 이름의 AGENTS.md/명세/상태 파일이 있으면 그대로 덮어쓰지 말고 에이전트에게 기존 코드·규칙과의 차이를 먼저 확인하게 한다. 실제 프로젝트 루트 기준으로 문서 경로를 맞춘다.
+기본 브라우저에서 `http://127.0.0.1:8765`가 열립니다. Windows 패키지는 Windows PC에서 `scripts/build_windows.ps1`로 빌드해야 합니다. 자세한 실행 환경과 제한은 [`docs/BUILD.md`](docs/BUILD.md)를 참고하세요.
 
-첫 작업은 **M0~M1: 테스트 페이지 1개를 실제 수집해 OFFSCREEN 1건을 찾고, 유일한 위치·UI·result.json까지 연결하는 것**이다. 처음부터 모든 기능을 한꺼번에 생성하도록 요청하지 않는다.
+## 테스트
 
-### Codex와 다른 에이전트에서 공통으로 쓰는 방법
+```bash
+python -m pytest -q -s
+```
 
-명세와 테스트 기준은 Markdown이므로 특정 에이전트 전용 형식이 아니다. 시작 지시문은 어느 도구든 먼저 파일을 실제로 읽게 구성했다. Codex의 AGENTS.md 읽기 방식은 공식 문서에 안내되어 있다. [기술 참고 T1]
+테스트는 예약된 가상 문구를 포함한 자체 localhost 페이지만 검사합니다. 테스트가 만든 `result.json`과 현재 검증 상태는 [`docs/TEST_REPORT.md`](docs/TEST_REPORT.md), [`docs/STATUS.md`](docs/STATUS.md)에 기록합니다.
 
-다른 에이전트가 AGENTS.md를 자동으로 읽는지는 전제하지 않는다. 자동 인식 여부와 관계없이 START_PROMPT.md의 파일 읽기 지시를 사용한다. 도구별 설정 파일이나 플러그인은 이 묶음의 필수 조건이 아니다.
+## 기준 문서
 
-**명세의 이식성과 실행 환경의 가용성은 별개다.** 실제 저장소 접근, Python 설치, Chromium 실행, 네트워크 권한, Windows 빌드 수단은 시작 시 확인한다. Mac/Linux에서 개발을 시작할 수 있어도 최종 Windows 실행 검증을 대신하지는 못한다. [모집요강 p.2, p.8; 기술 참고 T7]
-
-## 3. 구현 방향
-
-사용자 WIKI의 `Frontend → FastAPI → Crawler → Detection Engine → Result Builder` 구조를 유지한다. 초기 구현은 로컬 FastAPI + 단순 HTML/CSS/JS + Playwright + 규칙 기반 탐지로 제안한다. Windows에서 실행 파일을 열면 브라우저 UI가 뜨는 방식이며 공개 웹서비스를 배포하는 작업은 아니다.
-
-AI는 개발에 활용하되, 도구의 필수 탐지에 외부 LLM API를 넣지 않는 초기안이다. 회원가입·DB·RAG·LangGraph는 제외한다. 이 기술 선택과 세부 한도는 공모전 요구가 아니라 구현 제안이다.
-
-## 4. 팀은 이렇게 움직인다
-
-A는 수집과 전체 통합을 책임진다. 분석 담당은 탐지 로직과 별도로 준비한 정상/광고 사례의 검증을 책임진다. B는 정확한 위치·정식 출력·UI와 다른 Windows 환경에서의 실행을 책임진다.
-
-처음에는 하나의 통합 흐름을 만든다. 이후 역할별로 다른 브랜치/작업 디렉터리를 사용한다. 팀원이 모두 같은 폴더의 같은 파일에 에이전트를 동시에 붙이지 않는다. 검증 담당자는 마지막 날에만 등장하는 역할이 아니다.
-
-## 5. 반드시 구분할 것
-
-- 동봉 테스트는 자체 검증 기준이지 주최 측 비공개 정답셋이 아니다.
-- schema 통과는 JSON 구조 확인이며, 탐지 정확도나 요소 위치의 정답을 보장하지 않는다.
-- Windows 빌드·실행은 실제 Windows에서 확인해야 한다. 다른 OS 테스트로 대체하지 않는다.
-- iframe의 URL 표현, 조상 숨김의 정답 요소 등 미명시 경계는 명세 §13에 남겼다.
-- 동봉 명세는 개발용이다. 공모전 서식4의 5~10매 기획서와 신청 서류는 최종 결과를 바탕으로 별도 준비한다.
-
-공모전 요구사항은 `sources/contest-guidelines.pdf`, 원래 팀안은 `sources/project-wiki.md`, 기술 참고는 `sources/REFERENCES.md`를 확인한다.
+- [`IMPLEMENTATION_SPEC.md`](IMPLEMENTATION_SPEC.md): 제품 범위, 데이터 계약, 오류·안전 경계, 완료 게이트
+- [`ACCEPTANCE_TESTS.md`](ACCEPTANCE_TESTS.md): 인수 기준
+- [`AGENTS.md`](AGENTS.md): 저장소 작업 지침
+- [`sources/contest-guidelines.pdf`](sources/contest-guidelines.pdf): 모집요강 원본
+- [`sources/project-wiki.md`](sources/project-wiki.md): 팀 WIKI 원본
